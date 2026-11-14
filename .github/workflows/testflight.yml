@@ -12,7 +12,7 @@ on:
         default: all
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: testflight
@@ -67,6 +67,7 @@ jobs:
       - name: Build, sign, upload
         env:
           CRAFT_KEY: ${{ secrets.CRAFT_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: scripts/build_app.sh ${{ matrix.app }}
       - name: Report errors
         if: failure()

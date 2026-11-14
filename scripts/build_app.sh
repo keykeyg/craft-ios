@@ -60,11 +60,30 @@ command -v xcodegen >/dev/null || brew install xcodegen
 (cd "$W/xc" && xcodegen generate --quiet)
 end
 
-# --- signing material ----------------------------------------------------------------------------------
+# --- no signing key here: publish the unsigned app for signing elsewhere -------------------------------
 if [ -z "${CRAFT_KEY:-}" ]; then
-  echo "::warning::CRAFT_KEY secret not set: built $UP for iOS but skipped signing and upload."
+  step "Unsigned archive"
+  cd "$W/xc"
+  xcodebuild -project KGApp.xcodeproj -scheme KGApp -configuration Release -sdk iphoneos \
+    -archivePath "$W/KG.xcarchive" archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+    KG_PRODUCT_NAME="$PRODUCT" KG_BUNDLE_ID="$BUNDLE" KG_DISPLAY_NAME="$NAME" \
+    KG_VERSION="$VER" KG_BUILD="$BUILD" KG_TEAM="" KG_PROFILE="" \
+    KG_RUST_BIN="$BIN" > "$W/xcodebuild.log" 2>&1 || { tail -60 "$W/xcodebuild.log"; exit 1; }
+  APP="$W/KG.xcarchive/Products/Applications/$PRODUCT.app"
+  test -x "$APP/$PRODUCT"; ls -la "$APP"
+  ditto -c -k --keepParent "$APP" "$W/$ID.app.zip"
+  printf '{"id":"%s","version":"%s","build":"%s","product":"%s","bundle":"%s","upstream":"%s"}\n' \
+    "$ID" "$VER" "$BUILD" "$PRODUCT" "$BUNDLE" "$(cat "$W/upstream.txt")" > "$W/$ID.json"
+  TAG="apps-${GITHUB_RUN_NUMBER:-0}"
+  gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Unsigned iOS apps, run ${GITHUB_RUN_NUMBER:-0}" \
+    --notes "Unsigned app bundles from the testflight workflow; signed and uploaded to TestFlight separately." --prerelease >/dev/null 2>&1 || true
+  for i in 1 2 3 4 5; do gh release upload "$TAG" "$W/$ID.app.zip" "$W/$ID.json" --clobber && break; sleep $((i * 5)); done
+  echo "published $ID.app.zip to release $TAG"
+  end
   exit 0
 fi
+
+# --- signing material ----------------------------------------------------------------------------------
 step "Signing"
 pip3 install --quiet --break-system-packages cryptography pyjwt requests 2>/dev/null || pip3 install --quiet cryptography pyjwt requests
 python3 "$REPO/scripts/vault.py" open "$REPO/secrets.enc" "$W/vault"
