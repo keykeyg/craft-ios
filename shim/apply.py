@@ -3,8 +3,8 @@
 
     apply.py <checkout> <upstream-name>
 
-1. Vendors shim/rfd-stub as ios-shim/rfd-stub and patches crates.io `rfd` to it
-   (upstream rfd has no iOS backend).
+1. Vendors the stand-ins in shim/ (rfd: file dialogs, arboard: clipboard; neither
+   has an iOS backend upstream) and patches crates.io to them.
 2. Drops eframe's `glow` feature (glutin has no iOS backend; iOS draws with
    wgpu on Metal) and rewrites the few lines that only compile with it.
 3. Applies patches/<upstream-name>.json, a list of {"file", "find", "replace"}
@@ -29,20 +29,27 @@ GLOW_REWRITES = [
 ]
 
 
-def patch_rfd(root: Path) -> None:
-    dest = root / "ios-shim" / "rfd-stub"
-    if dest.exists():
-        shutil.rmtree(dest)
-    shutil.copytree(HERE / "rfd-stub", dest, ignore=shutil.ignore_patterns("target", "Cargo.lock"))
+# crates.io crates with no iOS backend, replaced by the stand-ins in shim/.
+STUBS = {"rfd": "rfd-stub", "arboard": "arboard-stub"}
+
+
+def patch_stubs(root: Path) -> None:
     cargo = root / "Cargo.toml"
     text = cargo.read_text()
-    line = 'rfd = { path = "ios-shim/rfd-stub" }'
+    lines = []
+    for crate, folder in STUBS.items():
+        dest = root / "ios-shim" / folder
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(HERE / folder, dest, ignore=shutil.ignore_patterns("target", "Cargo.lock"))
+        lines.append(f'{crate} = {{ path = "ios-shim/{folder}" }}')
+        print(f"{crate} -> ios-shim/{folder}")
+    block = "\n".join(lines)
     if "[patch.crates-io]" in text:
-        text = re.sub(r"^\[patch\.crates-io\]\s*$", "[patch.crates-io]\n" + line, text, count=1, flags=re.M)
+        text = re.sub(r"^\[patch\.crates-io\]\s*$", "[patch.crates-io]\n" + block, text, count=1, flags=re.M)
     else:
-        text += "\n[patch.crates-io]\n" + line + "\n"
+        text += "\n[patch.crates-io]\n" + block + "\n"
     cargo.write_text(text)
-    print("rfd -> ios-shim/rfd-stub")
 
 
 def manifests(root: Path):
@@ -95,7 +102,7 @@ def app_patches(root: Path, name: str) -> None:
 
 def main() -> None:
     root, name = Path(sys.argv[1]).resolve(), sys.argv[2]
-    patch_rfd(root)
+    patch_stubs(root)
     drop_glow(root)
     app_patches(root, name)
 

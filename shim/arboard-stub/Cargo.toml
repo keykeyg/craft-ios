@@ -1,0 +1,20 @@
+[package]
+name = "arboard"
+version = "3.7.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "iOS stand-in for arboard 3.7: text and HTML through UIPasteboard (upstream has no iOS backend). common.rs is arboard's own."
+
+[features]
+default = ["image-data"]
+image-data = []
+image = []
+core-graphics = []
+wayland-data-control = []
+windows-sys = []
+wl-clipboard-rs = []
+
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSString", "NSArray", "NSData", "NSObject"] }
+objc2-ui-kit = { version = "0.3", features = ["UIPasteboard"] }

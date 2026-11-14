@@ -79,3 +79,51 @@ if __name__ == "__main__" and sys.argv[1] == "bundle-ids":
         print(k, v["attributes"]["identifier"], v["attributes"]["seedId"])
 if __name__ == "__main__" and sys.argv[1] == "profiles":
     ensure_profiles(sys.argv[2], sys.argv[3])
+
+def ensure_internal_testing(email):
+    """Per app: an internal TestFlight group that gets every build, with `email` in it."""
+    users = get_all("/v1/users", {"fields[users]": "username,firstName,lastName,roles"})
+    me = next((u for u in users if u["attributes"]["username"].lower() == email.lower()), None)
+    if me is None:
+        print("no App Store Connect user", email, "- users:", [u["attributes"]["username"] for u in users])
+    first, last = (me["attributes"]["firstName"], me["attributes"]["lastName"]) if me else ("", "")
+    apps = {a["attributes"]["bundleId"]: a for a in get_all("/v1/apps", {"fields[apps]": "name,bundleId"})}
+    for a in apps_cfg():
+        app = apps.get(BUNDLE_PREFIX + a["id"])
+        if app is None:
+            print(f"{a['id']}: no app record yet")
+            continue
+        groups = get_all(f"/v1/apps/{app['id']}/betaGroups")
+        g = next((x for x in groups if x["attributes"].get("isInternalGroup")), None)
+        if g is None:
+            g = call("POST", "/v1/betaGroups", {"data": {"type": "betaGroups",
+                "attributes": {"name": "Keyan", "isInternalGroup": True, "hasAccessToAllBuilds": True},
+                "relationships": {"app": {"data": {"type": "apps", "id": app["id"]}}}}})["data"]
+            print(f"{a['id']}: created internal group")
+        testers = get_all(f"/v1/betaGroups/{g['id']}/betaTesters", {"fields[betaTesters]": "email"})
+        if any(t["attributes"].get("email", "").lower() == email.lower() for t in testers):
+            print(f"{a['id']}: {email} already testing")
+            continue
+        r = requests.post(API + "/v1/betaTesters", timeout=60, headers={"Authorization": "Bearer " + token()},
+            json={"data": {"type": "betaTesters", "attributes": {"email": email, "firstName": first, "lastName": last},
+                           "relationships": {"betaGroups": {"data": [{"type": "betaGroups", "id": g["id"]}]}}}})
+        print(f"{a['id']}: add tester -> {r.status_code} {r.text[:300] if r.status_code >= 300 else ''}")
+
+def builds_status():
+    apps = {a["attributes"]["bundleId"]: a for a in get_all("/v1/apps", {"fields[apps]": "name,bundleId"})}
+    for a in apps_cfg():
+        app = apps.get(BUNDLE_PREFIX + a["id"])
+        if app is None:
+            print(f"{a['id']:7} no app record"); continue
+        bs = call("GET", "/v1/builds", params={"filter[app]": app["id"], "sort": "-uploadedDate", "limit": 1,
+                  "fields[builds]": "version,processingState,uploadedDate,expired", "include": "preReleaseVersion"})
+        if not bs["data"]:
+            print(f"{a['id']:7} {app['attributes']['name']}: no builds"); continue
+        b = bs["data"][0]["attributes"]
+        pv = (bs.get("included") or [{}])[0].get("attributes", {}).get("version", "?")
+        print(f"{a['id']:7} {app['attributes']['name']}: {pv} ({b['version']}) {b['processingState']} {b['uploadedDate'][:16]}")
+
+if __name__ == "__main__" and sys.argv[1] == "testers":
+    ensure_internal_testing(sys.argv[2])
+if __name__ == "__main__" and sys.argv[1] == "status":
+    builds_status()
