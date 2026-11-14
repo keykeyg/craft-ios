@@ -69,6 +69,16 @@ jobs:
           CRAFT_KEY: ${{ secrets.CRAFT_KEY }}
           GH_TOKEN: ${{ github.token }}
         run: scripts/build_app.sh ${{ matrix.app }}
+      - name: Keep the IPA as an artifact too
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}
+          path: |
+            ${{ runner.temp }}/kg-${{ matrix.app }}/${{ matrix.app }}.ipa
+            ${{ runner.temp }}/kg-${{ matrix.app }}/${{ matrix.app }}.json
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Report errors
         if: failure()
         run: |

@@ -75,9 +75,9 @@ if [ -z "${CRAFT_KEY:-}" ]; then
   printf '{"id":"%s","version":"%s","build":"%s","product":"%s","bundle":"%s","upstream":"%s"}\n' \
     "$ID" "$VER" "$BUILD" "$PRODUCT" "$BUNDLE" "$(cat "$W/upstream.txt")" > "$W/$ID.json"
   TAG="apps-${GITHUB_RUN_NUMBER:-0}"
-  gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Unsigned iOS apps, run ${GITHUB_RUN_NUMBER:-0}" \
+  gh release view -R "$GITHUB_REPOSITORY" "$TAG" >/dev/null 2>&1 || gh release create -R "$GITHUB_REPOSITORY" "$TAG" --title "Unsigned iOS apps, run ${GITHUB_RUN_NUMBER:-0}" \
     --notes "Unsigned app bundles from the testflight workflow; signed and uploaded to TestFlight separately." --prerelease >/dev/null 2>&1 || true
-  for i in 1 2 3 4 5; do gh release upload "$TAG" "$W/$ID.app.zip" "$W/$ID.json" --clobber && break; sleep $((i * 5)); done
+  ok=; for i in 1 2 3 4 5; do gh release upload -R "$GITHUB_REPOSITORY" "$TAG" "$W/$ID.app.zip" "$W/$ID.json" --clobber && { ok=1; break; }; sleep $((i * 5)); done; [ -n "$ok" ]
   echo "published $ID.app.zip to release $TAG"
   end
   exit 0
@@ -142,8 +142,8 @@ cp "$IPA" "$W/$ID.ipa"
 printf '{"id":"%s","version":"%s","build":"%s","product":"%s","bundle":"%s","upstream":"%s","signed":true}\n' \
   "$ID" "$VER" "$BUILD" "$PRODUCT" "$BUNDLE" "$(cat "$W/upstream.txt")" > "$W/$ID.json"
 TAG="ipas-${GITHUB_RUN_NUMBER:-0}"
-gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Signed iOS builds, run ${GITHUB_RUN_NUMBER:-0}" \
+gh release view -R "$GITHUB_REPOSITORY" "$TAG" >/dev/null 2>&1 || gh release create -R "$GITHUB_REPOSITORY" "$TAG" --title "Signed iOS builds, run ${GITHUB_RUN_NUMBER:-0}" \
   --notes "App Store-signed IPAs from the testflight workflow (they only install through TestFlight)." --prerelease >/dev/null 2>&1 || true
-for i in 1 2 3 4 5; do gh release upload "$TAG" "$W/$ID.ipa" "$W/$ID.json" --clobber && break; sleep $((i * 5)); done
+ok=; for i in 1 2 3 4 5; do gh release upload -R "$GITHUB_REPOSITORY" "$TAG" "$W/$ID.ipa" "$W/$ID.json" --clobber && { ok=1; break; }; sleep $((i * 5)); done; [ -n "$ok" ]
 echo "published $ID.ipa ($NAME $VER, build $BUILD) to release $TAG"
 end
