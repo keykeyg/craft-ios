@@ -44,7 +44,7 @@ mkdir -p "$W/xc/Payload/Licenses"
 for f in NOTICE LICENSE LICENSE-APACHE LICENSE-MIT ATTRIBUTION.md; do [ -f "$f" ] && cp "$f" "$W/xc/Payload/Licenses/"; done
 cp "$REPO/NOTICE.ios.md" "$W/xc/Payload/Licenses/" 2>/dev/null || true
 if [ "$UP" = pdfcraft ]; then
-  if cargo xtask models; then mkdir -p "$W/xc/Payload/models" && cp assets/models/*.rten "$W/xc/Payload/models/"; else echo "::warning::OCR models not fetched; OCR will be off"; fi
+  if cargo xtask models; then mkdir -p "$W/xc/Payload/models" && cp assets/models/* "$W/xc/Payload/models/"; else echo "::warning::OCR models not fetched; OCR will be off"; fi
 fi
 end
 
