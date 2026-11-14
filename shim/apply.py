@@ -127,6 +127,47 @@ def drop_linux_winit(root: Path) -> None:
             print("no x11/wayland:", rel)
 
 
+# Wayland crates don't build for iOS (rustix lacks the socket flags they use). Some apps list them
+# under `cfg(all(unix, not(target_os = "macos")))`, which iOS matches: move them to a table that
+# leaves iOS out.
+WAYLAND_DEPS = {"wl-clipboard-rs", "wayland-client", "wayland-protocols", "wayland-protocols-wlr",
+                "wayland-backend", "wayland-cursor", "smithay-clipboard"}
+# arboard's own Linux gate, copied into app code next to code that uses its Linux extensions.
+ARBOARD_LINUX = 'not(any(target_os = "macos", target_os = "android", target_os = "emscripten"))'
+ARBOARD_LINUX_IOS = 'not(any(target_os = "macos", target_os = "ios", target_os = "android", target_os = "emscripten"))'
+
+
+def drop_wayland(root: Path) -> None:
+    for p in manifests(root):
+        lines = p.read_text().splitlines(keepends=True)
+        section, moved, keep = "", {}, []
+        for l in lines:
+            m = re.match(r"\s*\[(.*)\]\s*$", l)
+            if m:
+                section = m.group(1)
+            name = re.match(r"\s*([A-Za-z0-9_-]+)\s*=", l)
+            cfg = re.match(r"target\.'cfg\((.*)\)'\.(\w+)$", section)
+            if name and name.group(1) in WAYLAND_DEPS and cfg and "unix" in cfg.group(1) and "ios" not in cfg.group(1):
+                key = f"target.'cfg(all({cfg.group(1)}, not(target_os = \"ios\")))'.{cfg.group(2)}"
+                moved.setdefault(key, []).append(l if l.endswith("\n") else l + "\n")
+                continue
+            keep.append(l)
+        if moved:
+            text = "".join(keep)
+            for key, deps in moved.items():
+                text += f"\n[{key}]\n" + "".join(deps)
+            p.write_text(text)
+            print("wayland deps off iOS:", p.relative_to(root), sorted(re.match(r"\s*([A-Za-z0-9_-]+)", d).group(1) for v in moved.values() for d in v))
+    for p in root.rglob("*.rs"):
+        rel = p.relative_to(root).as_posix()
+        if rel.startswith(("vendor/", "ios-shim/", "target/")) or "-web/" in rel:
+            continue
+        text = p.read_text(errors="ignore")
+        if ARBOARD_LINUX in text:
+            p.write_text(text.replace(ARBOARD_LINUX, ARBOARD_LINUX_IOS))
+            print("arboard-linux gate off iOS:", rel)
+
+
 def app_patches(root: Path, name: str) -> None:
     f = REPO / "patches" / f"{name}.json"
     if not f.exists():
@@ -145,6 +186,7 @@ def main() -> None:
     patch_stubs(root)
     drop_glow(root)
     drop_linux_winit(root)
+    drop_wayland(root)
     app_patches(root, name)
 
 
