@@ -102,8 +102,6 @@ UUID="$(security cms -D -i "$PROFILE" | plutil -extract UUID raw -)"
 for d in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
   mkdir -p "$d"; cp "$PROFILE" "$d/$UUID.mobileprovision"
 done
-mkdir -p "$HOME/.appstoreconnect/private_keys"
-cp "$W/vault/AuthKey_$ASC_KEY_ID.p8" "$HOME/.appstoreconnect/private_keys/"
 end
 
 # --- archive, export, upload ----------------------------------------------------------------------------
@@ -137,13 +135,14 @@ xcodebuild -exportArchive -archivePath "$W/KG.xcarchive" -exportPath "$W/out" -e
 IPA="$(ls "$W"/out/*.ipa)"; ls -la "$IPA"
 end
 
-step "Upload to TestFlight"
-if ! xcrun altool --upload-app -f "$IPA" -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" --output-format normal; then
-  echo "altool failed; trying xcodebuild upload"
-  sed -i '' 's#<string>export</string>#<string>upload</string>#' "$W/export.plist"
-  xcodebuild -exportArchive -archivePath "$W/KG.xcarchive" -exportPath "$W/up" -exportOptionsPlist "$W/export.plist" \
-    -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8" \
-    -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
-fi
-echo "uploaded $NAME $VER ($BUILD)"
+step "Publish signed IPA"
+# The App Store Connect key stays off this public runner; the IPA is uploaded with the API elsewhere.
+cp "$IPA" "$W/$ID.ipa"
+printf '{"id":"%s","version":"%s","build":"%s","product":"%s","bundle":"%s","upstream":"%s","signed":true}\n' \
+  "$ID" "$VER" "$BUILD" "$PRODUCT" "$BUNDLE" "$(cat "$W/upstream.txt")" > "$W/$ID.json"
+TAG="ipas-${GITHUB_RUN_NUMBER:-0}"
+gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Signed iOS builds, run ${GITHUB_RUN_NUMBER:-0}" \
+  --notes "App Store-signed IPAs from the testflight workflow (they only install through TestFlight)." --prerelease >/dev/null 2>&1 || true
+for i in 1 2 3 4 5; do gh release upload "$TAG" "$W/$ID.ipa" "$W/$ID.json" --clobber && break; sleep $((i * 5)); done
+echo "published $ID.ipa ($NAME $VER, build $BUILD) to release $TAG"
 end
