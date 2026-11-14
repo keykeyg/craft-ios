@@ -1,0 +1,34 @@
+[package]
+name = "rfd"
+version = "0.17.2"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "iOS stand-in for rfd 0.17 (upstream has no iOS backend). Based on surfrpt1's PdfCraft iOS spike."
+
+[features]
+default = []
+file-handle-inner = []
+# Accept the upstream feature names so dependents that set them still resolve.
+xdg-portal = []
+gtk3 = []
+tokio = []
+async-std = []
+common-controls-v6 = []
+
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSString", "NSArray", "NSURL", "NSObject", "NSObjCRuntime", "NSRunLoop", "NSDate", "NSThread"] }
+objc2-ui-kit = { version = "0.3", features = [
+    "block2",
+    "UIDocumentPickerViewController",
+    "UIApplication",
+    "UIViewController",
+    "UIView",
+    "UIWindow",
+    "UIActivityViewController",
+    "UIActivity",
+    "UIPopoverPresentationController",
+    "UIAlertController",
+    "UIResponder",
+] }

@@ -1,0 +1,8 @@
+target/
+*.p8
+*.p12
+*.key
+*.cer
+__pycache__/
+secrets.enc.tmp
+shim/rfd-stub/Cargo.lock

@@ -1,0 +1,90 @@
+name: testflight
+# Builds the apps listed in build.json for iOS and uploads them to TestFlight.
+# Edit build.json (or run this workflow by hand) to start a build.
+on:
+  push:
+    branches: [main]
+    paths: [build.json]
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: 'App ids, space separated, or "all"'
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.p.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: p
+        env:
+          INPUT_APPS: ${{ github.event.inputs.apps }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          ids = [a["id"] for a in json.load(open("apps.json"))]
+          want = (os.environ.get("INPUT_APPS") or "").split() or json.load(open("build.json"))["apps"]
+          if want == ["all"]:
+              want = ids
+          bad = [w for w in want if w not in ids]
+          assert not bad, f"unknown app ids: {bad}"
+          print("apps=" + json.dumps(want))
+          PY
+
+  build:
+    needs: plan
+    runs-on: macos-26
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        app: ${{ fromJson(needs.plan.outputs.apps) }}
+    name: ${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$X"; xcodebuild -version
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.app }}
+          workspaces: ${{ runner.temp }}/kg-${{ matrix.app }}/src -> ${{ runner.temp }}/kg-${{ matrix.app }}/target
+          cache-on-failure: true
+      - name: Build, sign, upload
+        env:
+          CRAFT_KEY: ${{ secrets.CRAFT_KEY }}
+        run: scripts/build_app.sh ${{ matrix.app }}
+      - name: Report errors
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import glob, re
+          for log in glob.glob("${{ runner.temp }}/kg-*/cargo.log") + glob.glob("${{ runner.temp }}/kg-*/xcodebuild.log"):
+              text = open(log, errors="ignore").read().splitlines()
+              blocks, i = [], 0
+              while i < len(text) and len(blocks) < 12:
+                  if re.match(r"^(error(\[E\d+\])?:|.*: error:|ld: |error: linking)", text[i]):
+                      blocks.append("%0A".join(l.replace("%", "%25") for l in text[i:i+14]))
+                      i += 14
+                  else:
+                      i += 1
+              for b in blocks:
+                  print(f"::error title={log.split('/')[-1]}::{b}")
+              if not blocks:
+                  tail = "%0A".join(l.replace("%", "%25") for l in text[-40:])
+                  print(f"::error title={log.split('/')[-1]} (tail)::{tail}")
+          PY
