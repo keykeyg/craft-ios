@@ -58,6 +58,10 @@
   <string>Opens photos you choose from your library.</string>
   <key>NSPhotoLibraryAddUsageDescription</key>
   <string>Saves images you export to your photo library.</string>
+  <key>NSBluetoothAlwaysUsageDescription</key>
+  <string>Connects to Bluetooth instruments, pens and controllers you choose to use.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>Tags files with a place only when you ask it to.</string>
   <key>NSLocalNetworkUsageDescription</key>
   <string>Connects to devices and printers on your network when you ask it to.</string>
 </dict>
