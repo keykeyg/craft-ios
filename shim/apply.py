@@ -33,6 +33,16 @@ GLOW_REWRITES = [
 STUBS = {"rfd": "rfd-stub", "arboard": "arboard-stub"}
 
 
+def locked_version(root: Path, crate: str):
+    lock = root / "Cargo.lock"
+    if not lock.exists():
+        return None
+    found = re.findall(r'\[\[package\]\]\nname = "' + re.escape(crate) + r'"\nversion = "([^"]+)"', lock.read_text())
+    if not found:
+        return None
+    return max(found, key=lambda v: [int(x) if x.isdigit() else 0 for x in re.split(r"[.+-]", v)])
+
+
 def patch_stubs(root: Path) -> None:
     cargo = root / "Cargo.toml"
     text = cargo.read_text()
@@ -42,6 +52,11 @@ def patch_stubs(root: Path) -> None:
         if dest.exists():
             shutil.rmtree(dest)
         shutil.copytree(HERE / folder, dest, ignore=shutil.ignore_patterns("target", "Cargo.lock"))
+        # Take the version the lockfile already holds, so cargo uses the patch without re-resolving.
+        locked = locked_version(root, crate)
+        if locked:
+            manifest = dest / "Cargo.toml"
+            manifest.write_text(re.sub(r'^version = "[^"]+"', f'version = "{locked}"', manifest.read_text(), count=1, flags=re.M))
         lines.append(f'{crate} = {{ path = "ios-shim/{folder}" }}')
         print(f"{crate} -> ios-shim/{folder}")
     block = "\n".join(lines)
@@ -87,6 +102,31 @@ def drop_glow(root: Path) -> None:
             print("glow-free:", rel)
 
 
+# winit's X11/Wayland extensions only exist on Linux and the BSDs, but the apps reach them from
+# `cfg(all(unix, not(target_os = "macos")))` blocks, which iOS also matches. In an iOS-only tree
+# the calls simply go.
+LINUX_WINIT = [
+    (re.compile(r"^[ \t]*use winit::platform::(?:x11|wayland)::[^;]*;[ \t]*\n", re.M), ""),
+    (re.compile(r"\b(\w+)\.with_(?:x11|wayland)\(\);"), r"let _ = &\1;"),
+]
+
+
+def drop_linux_winit(root: Path) -> None:
+    for p in root.rglob("*.rs"):
+        rel = p.relative_to(root).as_posix()
+        if rel.startswith(("vendor/", "ios-shim/", "target/")) or "-web/" in rel:
+            continue
+        text = p.read_text(errors="ignore")
+        if "winit::platform::" not in text:
+            continue
+        new = text
+        for rx, rep in LINUX_WINIT:
+            new = rx.sub(rep, new)
+        if new != text:
+            p.write_text(new)
+            print("no x11/wayland:", rel)
+
+
 def app_patches(root: Path, name: str) -> None:
     f = REPO / "patches" / f"{name}.json"
     if not f.exists():
@@ -104,6 +144,7 @@ def main() -> None:
     root, name = Path(sys.argv[1]).resolve(), sys.argv[2]
     patch_stubs(root)
     drop_glow(root)
+    drop_linux_winit(root)
     app_patches(root, name)
 
 
