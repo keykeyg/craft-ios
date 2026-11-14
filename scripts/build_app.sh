@@ -109,10 +109,11 @@ step "Archive"
 cd "$W/xc"
 xcodebuild -project KGApp.xcodeproj -scheme KGApp -configuration Release -sdk iphoneos \
   -archivePath "$W/KG.xcarchive" archive \
-  OTHER_CODE_SIGN_FLAGS="--keychain $KC" \
+  CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution" DEVELOPMENT_TEAM="$TEAM_ID" \
+  PROVISIONING_PROFILE_SPECIFIER="kg $ID appstore" OTHER_CODE_SIGN_FLAGS="--keychain $KC" \
   KG_PRODUCT_NAME="$PRODUCT" KG_BUNDLE_ID="$BUNDLE" KG_DISPLAY_NAME="$NAME" \
   KG_VERSION="$VER" KG_BUILD="$BUILD" KG_TEAM="$TEAM_ID" KG_PROFILE="kg $ID appstore" \
-  KG_RUST_BIN="$BIN" | tee "$W/xcodebuild.log" | grep -E '^(\*\*|error|warning: .*sign)' || true
+  KG_RUST_BIN="$BIN" > "$W/xcodebuild.log" 2>&1 || { grep -E 'error|\*\*' "$W/xcodebuild.log" | tail -30; exit 1; }
 test -d "$W/KG.xcarchive/Products/Applications/$PRODUCT.app"
 end
 

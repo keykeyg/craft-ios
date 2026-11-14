@@ -41,6 +41,8 @@ targets:
         CURRENT_PROJECT_VERSION: $(KG_BUILD)
         DEVELOPMENT_TEAM: $(KG_TEAM)
         PROVISIONING_PROFILE_SPECIFIER: $(KG_PROFILE)
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Apple Distribution"
     postBuildScripts:
       - name: Embed Rust app
         basedOnDependencyAnalysis: false
