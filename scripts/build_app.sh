@@ -74,7 +74,7 @@ security create-keychain -p "$KCPW" "$KC"
 security set-keychain-settings -lut 21600 "$KC"
 security unlock-keychain -p "$KCPW" "$KC"
 curl -fsSL -o "$W/wwdr.cer" https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer && security import "$W/wwdr.cer" -k "$KC" -A || true
-security import "$W/vault/dist.p12" -k "$KC" -P "$(cat "$W/vault/p12_pass")" -A -t cert -f pkcs12
+security import "$W/vault/dist.p12" -k "$KC" -P "$(cat "$W/vault/p12_pass")" -A -T /usr/bin/codesign -T /usr/bin/security
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KCPW" "$KC" >/dev/null
 security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
 security find-identity -v -p codesigning "$KC"
