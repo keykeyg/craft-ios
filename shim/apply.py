@@ -60,7 +60,10 @@ def patch_stubs(root: Path) -> None:
             manifest.write_text(re.sub(r'^version = "[^"]+"', f'version = "{locked}"', manifest.read_text(), count=1, flags=re.M))
         lines.append(f'{crate} = {{ path = "ios-shim/{folder}" }}')
         print(f"{crate} -> ios-shim/{folder}")
+    lines = [l for l in lines if l not in text]  # re-runnable: don't add a patch line twice
     block = "\n".join(lines)
+    if not lines:
+        return
     if "[patch.crates-io]" in text:
         text = re.sub(r"^\[patch\.crates-io\]\s*$", "[patch.crates-io]\n" + block, text, count=1, flags=re.M)
     else:
@@ -218,11 +221,15 @@ def patch_egui(root: Path) -> None:
     cargo = root / "Cargo.toml"
     text = cargo.read_text()
     revs = set(re.findall(r'git = "https://github\.com/storytold/egui\.git", rev = "([0-9a-f]+)"', text))
-    if len(revs) != 1:
+    done = set(re.findall(r'path = "\.\./(ios-egui-[0-9a-f]{8})/crates/', text))
+    if len(revs) == 1:
+        rev = revs.pop()
+        dest = root.parent / f"ios-egui-{rev[:8]}"
+        clone_at("https://github.com/storytold/egui.git", rev, dest)
+    elif not revs and len(done) == 1:  # already pointed at our checkout: just (re)apply the edits
+        dest = root.parent / done.pop()
+    else:
         sys.exit(f"egui: expected one storytold/egui revision, found {sorted(revs)}")
-    rev = revs.pop()
-    dest = root.parent / f"ios-egui-{rev[:8]}"
-    clone_at("https://github.com/storytold/egui.git", rev, dest)
     eframe = dest / "crates/eframe/src"
     shutil.copyfile(HERE / "ios_touch.rs", eframe / "ios_touch.rs")
     edit_once(eframe / "lib.rs", "mod ios_touch;", "\nmod epi;\n",
@@ -245,6 +252,22 @@ def patch_egui(root: Path) -> None:
               "            let origin = Pos2::new((inner.x - outer.x) as f32 / ppp, (inner.y - outer.y) as f32 / ppp);\n"
               "            *rect = Rect::from_min_size(origin, rect.size());\n"
               "        }\n")
+    # No links out to the original project from inside the apps (Discord, website, GitHub).
+    edit_once(dest / "crates/egui-winit/src/lib.rs", "craft-ios: upstream links",
+              "fn open_url_in_browser(_url: &str) {\n",
+              "fn open_url_in_browser(_url: &str) {\n"
+              "    // craft-ios: upstream links stay closed; the original project is credited in About.\n"
+              "    #[cfg(target_os = \"ios\")]\n"
+              "    {\n"
+              "        let u = _url.to_ascii_lowercase();\n"
+              "        if [\"discord.gg/\", \"getartcraft.com\", \"github.com/storytold\", \"githubusercontent.com/storytold\"]\n"
+              "            .iter()\n"
+              "            .any(|h| u.contains(h))\n"
+              "        {\n"
+              "            log::info!(\"craft-ios: not opening upstream link {_url}\");\n"
+              "            return;\n"
+              "        }\n"
+              "    }\n")
     text = re.sub(r'^([A-Za-z0-9_-]+) = \{ git = "https://github\.com/storytold/egui\.git", rev = "[0-9a-f]+" \}',
                   lambda m: f'{m.group(1)} = {{ path = "../{dest.name}/crates/{m.group(1)}" }}', text, flags=re.M)
     cargo.write_text(text)
