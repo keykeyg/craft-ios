@@ -103,14 +103,12 @@ pub(crate) fn adopt(window: &Retained<UIWindow>) {
     }
 }
 
-/// Move a window to the scene on `screen` (the app's own, or an external display's). False when
-/// no connected scene is on that screen; the caller then falls back to `UIWindow.screen`.
+/// Move a window to an external display's scene when `screen` is one; to any other screen means
+/// back to the app's own scene (on iPhone Duo the app's screen need not be `mainScreen`). False
+/// only before the app's scene has connected; the caller then falls back to `UIWindow.screen`.
 pub(crate) fn move_to(window: &UIWindow, screen: &UIScreen) -> bool {
-    let mut scenes: Vec<Retained<NSObject>> = EXTERNAL.with(|e| e.borrow().clone());
-    if let Some(app) = APP.with(|a| a.borrow().clone()) {
-        scenes.push(app);
-    }
-    match scenes.into_iter().find(|s| &*screen_of(s) == screen) {
+    let external = EXTERNAL.with(|e| e.borrow().iter().find(|s| &*screen_of(s) == screen).cloned());
+    match external.or_else(|| APP.with(|a| a.borrow().clone())) {
         Some(scene) => {
             attach(window, &scene);
             window.makeKeyAndVisible();
@@ -118,6 +116,11 @@ pub(crate) fn move_to(window: &UIWindow, screen: &UIScreen) -> bool {
         },
         None => false,
     }
+}
+
+/// Whether `screen` is an external display (glasses) connected as its own scene.
+pub(crate) fn is_external_screen(screen: &UIScreen) -> bool {
+    EXTERNAL.with(|e| e.borrow().iter().any(|s| &*screen_of(s) == screen))
 }
 
 /// Screens of connected external-display scenes (`UIScreen.screens` may not list them).

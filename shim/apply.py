@@ -254,6 +254,15 @@ def patch_winit(root: Path) -> None:
               "            #[allow(unused_unsafe)]\n"
               "            unsafe { self.view.setContentScaleFactor(scale) };\n"
               "        }\n")
+    # Monitor names: only a display connected as an external-display scene is "External display"
+    # (glasses mode looks for it); iPhone Duo's own displays are never mistaken for one.
+    edit_once(ios / "monitor.rs", "is_external_screen",
+              "    pub fn name(&self) -> Option<String> {\n        run_on_main(|mtm| {\n",
+              "    pub fn name(&self) -> Option<String> {\n        run_on_main(|mtm| {\n"
+              "            // craft-ios: external displays (glasses) are their own scenes.\n"
+              "            if super::scene::is_external_screen(self.ui_screen(mtm)) {\n"
+              "                return Some(\"External display\".to_string());\n"
+              "            }\n")
     edit_once(ios / "monitor.rs", "external_screens",
               "    UIScreen::screens(mtm).into_iter().map(MonitorHandle::new).collect()\n",
               "    let mut screens: Vec<Retained<UIScreen>> = UIScreen::screens(mtm).into_iter().collect();\n"

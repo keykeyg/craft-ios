@@ -92,10 +92,11 @@ pub(crate) fn sync_window(
     ctx: &Context,
 ) {
     let primary = event_loop.primary_monitor();
-    // Only a real external screen: the phone's own display is "Primary" (on the Duo too).
+    // Only a display connected as an external-display scene (winit names it so): iPhone Duo's
+    // inner and outer displays are both the phone, never the glasses.
     let external = event_loop
         .available_monitors()
-        .find(|m| Some(m) != primary.as_ref() && m.name().as_deref() != Some("Primary"));
+        .find(|m| m.name().as_deref() == Some("External display"));
     let mut st = state();
     match (external, st.active) {
         (Some(m), false) => {
