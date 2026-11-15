@@ -1,0 +1,16 @@
+{
+  "_note": "Glasses mode: each app's own row on the phone's Touch Bar. [label, keys]: keys are the app's default shortcut (see scripts/shortcuts.py), or type:WORD to type a command and press Return.",
+  "photocraft": [["move", "V"], ["brush", "B"], ["eraser", "E"], ["lasso", "L"], ["crop", "C"], ["eyedrop", "I"], ["type", "T"], ["hand", "H"], ["zoom", "Z"], ["deselect", "Cmd+D"], ["group", "Cmd+G"], ["new layer", "Cmd+Shift+N"]],
+  "vectorcraft": [["group", "Cmd+G"], ["ungroup", "Cmd+Shift+G"], ["lock", "Cmd+2"], ["hide", "Cmd+3"], ["fill/stroke", "X"], ["swap", "Shift+X"], ["default", "D"], ["deselect", "Cmd+Shift+A"]],
+  "designcraft": [["group", "Cmd+G"], ["ungroup", "Cmd+Shift+G"], ["lock", "Cmd+L"], ["hide", "Cmd+3"], ["bold", "Cmd+Shift+B"], ["italic", "Cmd+Shift+I"], ["center", "Cmd+Shift+C"], ["add pages", "Cmd+Shift+P"]],
+  "lightcraft": [["prev", "Left"], ["next", "Right"], ["pick", "Shift+Z"], ["reject", "Shift+X"], ["auto", "Shift+A"], ["b&w", "V"], ["white bal", "W"], ["reset", "Cmd+Shift+R"], ["import", "Cmd+Shift+I"]],
+  "filmcraft": [["play", "Space"], ["select", "V"], ["razor", "C"], ["ripple", "B"], ["slip", "Y"], ["hand", "H"], ["marker", "M"], ["in", "I"], ["out", "O"], ["zoom +", "="], ["zoom -", "-"], ["group", "Cmd+G"]],
+  "effectcraft": [["preview", "Space"], ["split", "Cmd+Shift+D"], ["duplicate", "Cmd+D"], ["next key", "K"], ["hold key", "Cmd+Alt+H"], ["group", "Cmd+G"], ["del keys", "Delete"]],
+  "figcraft": [["move", "V"], ["frame", "F"], ["rect", "R"], ["ellipse", "O"], ["line", "L"], ["pen", "P"], ["text", "T"], ["hand", "H"], ["comment", "C"], ["pick color", "I"]],
+  "wordcraft": [["bold", "Cmd+B"], ["italic", "Cmd+I"], ["underline", "Cmd+U"], ["bigger", "Cmd+Shift+."], ["smaller", "Cmd+Shift+,"], ["page break", "Cmd+Enter"], ["comment", "Cmd+Alt+M"]],
+  "gridcraft": [["bold", "Cmd+B"], ["italic", "Cmd+I"], ["sum", "Cmd+Shift+T"], ["fill down", "Cmd+D"], ["fill right", "Cmd+R"], ["format", "Cmd+1"], ["center", "Cmd+E"], ["flash fill", "Ctrl+E"]],
+  "deckcraft": [["duplicate", "Cmd+D"], ["group", "Cmd+Alt+G"], ["forward", "Cmd+]"], ["backward", "Cmd+["], ["bold", "Cmd+B"], ["center", "Cmd+E"], ["comment", "Cmd+Alt+M"]],
+  "soundcraft": [["play", "Space"], ["record", "Cmd+Space"], ["duplicate", "Cmd+D"], ["split", "Cmd+E"], ["heal", "Cmd+H"], ["group", "Cmd+Alt+G"], ["quantize", "Alt+0"]],
+  "cadcraft": [["line", "type:LINE"], ["rect", "type:RECTANG"], ["circle", "type:CIRCLE"], ["offset", "type:OFFSET"], ["move", "type:MOVE"], ["copy", "type:COPY"], ["fillet", "type:FILLET"], ["calc", "Cmd+8"]],
+  "pdfcraft": [["select", "V"], ["hand", "H"], ["zoom +", "Cmd+="], ["zoom -", "Cmd+-"]]
+}

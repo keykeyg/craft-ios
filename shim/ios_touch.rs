@@ -54,14 +54,38 @@ fn touch_style(s: &mut Style) {
 
 /// Bring the context's styles up to touch size. Writes only when something changed, so an
 /// unchanged style isn't replaced (and caches keyed on it stay warm).
-pub(crate) fn apply(ctx: &egui::Context) {
-    let needs_update = [egui::Theme::Dark, egui::Theme::Light].into_iter().any(|theme| {
-        let current = ctx.style_of(theme);
-        let mut wanted = (*current).clone();
-        touch_style(&mut wanted);
-        wanted != *current
-    });
-    if needs_update {
-        ctx.all_styles_mut(touch_style);
+/// The app's own styles from before the touch floors went on, so the desktop look can come back
+/// while the app is shown on a external display (glasses mode).
+static SAVED: std::sync::Mutex<Option<(Style, Style)>> = std::sync::Mutex::new(None);
+
+fn styles(ctx: &egui::Context) -> (Style, Style) {
+    ((*ctx.style_of(egui::Theme::Dark)).clone(), (*ctx.style_of(egui::Theme::Light)).clone())
+}
+
+fn touched((dark, light): &(Style, Style)) -> (Style, Style) {
+    let (mut d, mut l) = (dark.clone(), light.clone());
+    touch_style(&mut d);
+    touch_style(&mut l);
+    (d, l)
+}
+
+/// `touch`: phone sizes (44pt targets, 17pt text). Otherwise the app's own desktop sizes.
+pub(crate) fn apply(ctx: &egui::Context, touch: bool) {
+    let mut saved = SAVED.lock().unwrap_or_else(|e| e.into_inner());
+    let current = styles(ctx);
+    if touch {
+        let wanted = touched(&current);
+        if wanted != current {
+            // New styles from the app (first frame, or it changed theme): keep them, then touch them.
+            *saved = Some(current);
+            ctx.all_styles_mut(touch_style);
+        }
+    } else if let Some(original) = saved.take() {
+        // Only undo our own change; if the app restyled meanwhile, its style stands.
+        if touched(&original) == current {
+            let (dark, light) = original;
+            ctx.set_style_of(egui::Theme::Dark, dark);
+            ctx.set_style_of(egui::Theme::Light, light);
+        }
     }
 }
