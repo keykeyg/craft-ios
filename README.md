@@ -25,10 +25,18 @@ repository secret.
   buttons are hidden (`patches/`, and the Help-menu pass in `shim/apply.py`), such links don't
   open, and its releases are never offered as updates (updates come from TestFlight).
 
+## DS mode (iPhone Duo)
+
+Fold the inner display like a laptop, or tap **split** in the corner, and the canvas takes the top
+half while the bottom half becomes the controller below (buttons beside a trackpad), like a
+Nintendo DS. Unfold, or tap **full screen**, and the app has the whole display again. The hinge
+comes from UIKit's `UIHingeInteraction` (iOS 27.1); the split is in `shim/ios_glasses.rs`.
+
 ## Glasses mode
 
 Plug display glasses (or any external screen) into the phone and the app moves to them, with
-its desktop layout; unplug and it comes back to the phone. While it's on the glasses, the phone
+its desktop layout; unplug and it comes back to the phone. iPhone Duo's own outer display is never
+taken for glasses. While it's on the glasses, the phone
 is the controller (`shim/ios_glasses.rs`):
 
 - **Trackpad**: one finger moves the cursor, tap clicks, two-finger tap right-clicks, two-finger

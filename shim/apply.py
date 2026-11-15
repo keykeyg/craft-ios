@@ -220,6 +220,51 @@ def patch_winit(root: Path) -> None:
     shutil.copyfile(HERE / "ios_scene.rs", ios / "scene.rs")
     edit_once(ios / "mod.rs", "mod scene;", "mod notification_center;\n",
               "mod notification_center;\nmod scene;\n")
+    edit_once(ios / "mod.rs", "craft_hinge_angle", "pub(crate) use self::monitor::{MonitorHandle, VideoModeHandle};\n",
+              "pub(crate) use self::monitor::{MonitorHandle, VideoModeHandle};\n"
+              "pub(crate) use self::scene::{app_size as craft_scene_size, hinge_angle as craft_hinge_angle};\n")
+    # Windows placed within the app's scene (DS mode: canvas on one half, controls on the other).
+    window_rs = (ios / "window.rs")
+    if "craft_set_frame" not in window_rs.read_text():
+        window_rs.write_text(window_rs.read_text() + """
+// craft-ios: a window placed within its scene, in points (DS mode splits the inner display).
+impl Inner {
+    pub(crate) fn craft_set_frame(&self, x: f64, y: f64, width: f64, height: f64) {
+        let old = self.window.frame();
+        let new = CGRect {
+            origin: CGPoint { x: x as _, y: y as _ },
+            size: CGSize { width: width as _, height: height as _ },
+        };
+        let same = (old.origin.x - new.origin.x).abs() < 0.5
+            && (old.origin.y - new.origin.y).abs() < 0.5
+            && (old.size.width - new.size.width).abs() < 0.5
+            && (old.size.height - new.size.height).abs() < 0.5;
+        if !same {
+            self.window.setFrame(new);
+        }
+    }
+}
+""")
+    platform_rs = dest / "src/platform/ios.rs"
+    if "craft_hinge_angle" not in platform_rs.read_text():
+        platform_rs.write_text(platform_rs.read_text() + """
+// craft-ios: iPhone Duo support for eframe (glasses mode and DS mode).
+
+/// The hinge angle in radians while the device reports one (iPhone Duo, iOS 27.1+).
+pub fn craft_hinge_angle() -> Option<f64> {
+    crate::platform_impl::craft_hinge_angle()
+}
+
+/// Size in points of the app's own scene (the phone's display), once connected.
+pub fn craft_scene_size() -> Option<(f64, f64)> {
+    crate::platform_impl::craft_scene_size()
+}
+
+/// Place a window within its scene, in points.
+pub fn craft_set_frame(window: &crate::window::Window, x: f64, y: f64, width: f64, height: f64) {
+    window.window.maybe_queue_on_main(move |w| w.craft_set_frame(x, y, width, height));
+}
+""")
     edit_once(ios / "event_loop.rs", "scene::install",
               "        let center = unsafe { NSNotificationCenter::defaultCenter() };\n",
               "        let center = unsafe { NSNotificationCenter::defaultCenter() };\n"
@@ -331,14 +376,12 @@ def patch_egui(root: Path, upstream: str = "") -> None:
               "                    app.ui(ui, &mut self.frame);\n"
               "                    #[cfg(target_os = \"ios\")]\n"
               "                    crate::ios_glasses::after_ui(ui.ctx());\n")
-    # Each root frame: is a external screen (glasses) connected?
+    # Each frame: glasses connected? DS mode? Windows placed to match.
     edit_once(eframe / "native/wgpu_integration.rs", "ios_glasses::sync_window",
               "            egui_winit::update_viewport_info(info, &integration.egui_ctx, window, false);\n",
               "            egui_winit::update_viewport_info(info, &integration.egui_ctx, window, false);\n"
               "            #[cfg(target_os = \"ios\")]\n"
-              "            if viewport_id == ViewportId::ROOT {\n"
-              "                crate::ios_glasses::sync_window(event_loop, window, &integration.egui_ctx);\n"
-              "            }\n")
+              "            crate::ios_glasses::sync_window(event_loop, window, &integration.egui_ctx, viewport_id);\n")
     # Copy and paste through the iOS pasteboard (shim/arboard-stub) instead of an in-app clipboard.
     clip = dest / "crates/egui-winit/src/clipboard.rs"
     clip.write_text(clip.read_text().replace('not(any(target_os = "android", target_os = "ios"))', 'not(target_os = "android")'))
