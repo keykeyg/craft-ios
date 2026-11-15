@@ -1,0 +1,7 @@
+[
+ {
+  "file": "crates/ui-egui/src/canvas/start_screen.rs",
+  "find": "    render_rail_link(app, ui, rail_w, tl!(\"Website\"), \"link\", crate::links::APP_PAGE);\n    render_rail_link(app, ui, rail_w, tl!(\"Discord\"), \"message-square\", crate::links::DISCORD);\n    render_rail_link(app, ui, rail_w, tl!(\"GitHub\"), \"link-2\", crate::links::GITHUB);\n",
+  "replace": "    // craft-ios: no links to the original project (credited in About).\n    if !cfg!(target_os = \"ios\") {\n        render_rail_link(app, ui, rail_w, tl!(\"Website\"), \"link\", crate::links::APP_PAGE);\n        render_rail_link(app, ui, rail_w, tl!(\"Discord\"), \"message-square\", crate::links::DISCORD);\n        render_rail_link(app, ui, rail_w, tl!(\"GitHub\"), \"link-2\", crate::links::GITHUB);\n    }\n"
+ }
+]

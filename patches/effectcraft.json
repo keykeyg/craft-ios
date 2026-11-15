@@ -1,0 +1,7 @@
+[
+ {
+  "file": "crates/ui-egui/src/header.rs",
+  "find": "    let rx = community_buttons(app, ui, p, rect.max.x - 10.0, cy);",
+  "replace": "    // craft-ios: no Discord, GitHub or website buttons.\n    let rx = if cfg!(target_os = \"ios\") { rect.max.x - 10.0 } else { community_buttons(app, ui, p, rect.max.x - 10.0, cy) };"
+ }
+]

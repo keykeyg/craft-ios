@@ -231,6 +231,37 @@ def patch_winit(root: Path) -> None:
     print("winit -> full-screen iOS windows, external screens")
 
 
+def patch_craft_libs(root: Path) -> None:
+    """No update checks against the original project's GitHub releases: on iOS, updates come
+    through TestFlight and the App Store."""
+    cargo = root / "Cargo.toml"
+    text = cargo.read_text()
+    revs = set(re.findall(r'git = "https://github\.com/storytold/craft-libs", rev = "([0-9a-f]+)"', text))
+    if not revs:
+        print("craft-libs: not used")
+        return
+    if len(revs) != 1:
+        sys.exit(f"craft-libs: expected one revision, found {sorted(revs)}")
+    rev = revs.pop()
+    dest = root.parent / f"ios-craft-libs-{rev[:8]}"
+    clone_at("https://github.com/storytold/craft-libs", rev, dest)
+    edit_once(dest / "crates/update/src/lib.rs", "craft-ios",
+              "pub fn check_for_update(app: &App, http: &Http, current_version: &str) -> Result<Option<Release>, String> {\n",
+              "pub fn check_for_update(app: &App, http: &Http, current_version: &str) -> Result<Option<Release>, String> {\n"
+              "    // craft-ios: updates come from TestFlight / the App Store, not the original project.\n"
+              "    if cfg!(target_os = \"ios\") {\n"
+              "        let _ = (app, http, current_version);\n"
+              "        return Ok(None);\n"
+              "    }\n")
+    section = '[patch."https://github.com/storytold/craft-libs"]'
+    line = f'craft-update = {{ path = "../{dest.name}/crates/update" }}'
+    if section in text and line not in text:
+        sys.exit(f"craft-libs: {cargo} already has a {section} section")
+    if line not in text:
+        cargo.write_text(text.rstrip("\n") + f"\n\n{section}\n{line}\n")
+    print("craft-libs -> no upstream update checks")
+
+
 def bar_module(upstream: str) -> str:
     """The app's own Touch Bar row for glasses mode, from shim/bars.json."""
     bars = json.loads((HERE / "bars.json").read_text())
@@ -329,6 +360,26 @@ def patch_egui(root: Path, upstream: str = "") -> None:
 LITERAL = re.compile(r'(?<![A-Za-z0-9_#\'])"((?:[^"\\\n]|\\.)*)"')
 
 
+LINK_IDS = ("help.discord", "help.website", "help.appPage", "help.github", "help.reportIssue",
+            "help.moreApps", "help.community", "help.artcraft")
+MENU_CMD = re.compile(r'((?:cmd|uic)!\(\s*(?:[a-z_]+\s+)?"(' + "|".join(re.escape(i) for i in LINK_IDS)
+                      + r')",\s*"[^"]*",\s*)\[[^\]]*\]')
+
+
+def hide_link_menus(root: Path) -> None:
+    """Help menu entries that link to the original project (Discord, website, GitHub, issue
+    tracker) get no menu path, so they don't show. The project is credited in About instead."""
+    n = 0
+    for top in ("crates", "apps"):
+        for p in (root / top).rglob("*.rs"):
+            text = p.read_text(errors="replace")
+            out, k = MENU_CMD.subn(lambda m: m.group(1) + "[]", text)
+            if k:
+                p.write_text(out)
+                n += k
+    print(f"menus: {n} upstream link entries hidden")
+
+
 def rebrand(root: Path, brand: str, display: str) -> None:
     tokens = [(re.compile(re.escape(brand) + r"(?![A-Za-z0-9_])"), display),
               (re.compile(r"ArtCraft(?![A-Za-z0-9_])"), "Loom Studio")]
@@ -388,6 +439,8 @@ def main() -> None:
     patch_stubs(root)
     patch_winit(root)
     patch_egui(root, name)
+    patch_craft_libs(root)
+    hide_link_menus(root)
     if brand:
         rebrand(root, brand, display)
     drop_glow(root)

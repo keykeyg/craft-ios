@@ -1,0 +1,12 @@
+[
+ {
+  "file": "crates/ui-egui/src/chrome.rs",
+  "find": "            if discord {\n                ui.add_space(10.0);\n                crate::community::discord_button(app, ui, false);",
+  "replace": "            if discord && !cfg!(target_os = \"ios\") {\n                ui.add_space(10.0);\n                crate::community::discord_button(app, ui, false);"
+ },
+ {
+  "file": "crates/ui-egui/src/dialogs/about.rs",
+  "find": "    crate::community::links(app, ui);",
+  "replace": "    if !cfg!(target_os = \"ios\") {\n        crate::community::links(app, ui);\n    }"
+ }
+]

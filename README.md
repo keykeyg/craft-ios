@@ -20,6 +20,24 @@ repository secret.
 - `shim/ios_touch.rs` is compiled into eframe: 44 pt minimum tap targets, 8 pt spacing, capsule
   buttons and iPhone-size text, applied as floors on every app's own theme.
 - winit's iOS window always fills the screen, and egui lays out inside the safe area.
+- Copy and paste go through the iOS pasteboard, so they work between apps.
+- No links out to the original project from inside the apps: Discord, website and GitHub
+  buttons are hidden (`patches/`, and the Help-menu pass in `shim/apply.py`), such links don't
+  open, and there are no update checks against its releases (updates come from TestFlight).
+
+## Glasses mode
+
+Plug display glasses (or any external screen) into the phone and the app moves to them, with
+its desktop layout; unplug and it comes back to the phone. While it's on the glasses, the phone
+is the controller (`shim/ios_glasses.rs`):
+
+- **Trackpad**: one finger moves the cursor, tap clicks, two-finger tap right-clicks, two-finger
+  drag scrolls, pinch zooms. **drag** holds the button down for dragging.
+- **Touch Bar**: esc, undo, redo, cut, copy, paste, save and delete, then the app's own tools and
+  commands (`shim/bars.json`, from each app's default shortcuts; `scripts/shortcuts.py` lists them).
+- **Sticky modifiers**: tap ⌃ ⌥ ⇧ ⌘ once for the next click or key, again to lock (•), again to
+  release.
+- **keyboard** brings up the on-screen keyboard; what you type goes to the app.
 
 ## Names and icons
 

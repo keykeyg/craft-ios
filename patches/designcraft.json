@@ -1,0 +1,7 @@
+[
+ {
+  "file": "crates/ui-egui/src/chrome/app_bar.rs",
+  "find": "if crate::about::discord_button(ui, \"Discord\", vec2(78.0, 22.0)) {",
+  "replace": "if !cfg!(target_os = \"ios\") && crate::about::discord_button(ui, \"Discord\", vec2(78.0, 22.0)) {"
+ }
+]

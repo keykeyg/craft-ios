@@ -1,0 +1,7 @@
+[
+ {
+  "file": "crates/ui-egui/src/lib.rs",
+  "find": "            show_discord: true,",
+  "replace": "            show_discord: !cfg!(target_os = \"ios\"),"
+ }
+]

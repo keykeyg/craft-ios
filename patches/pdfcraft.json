@@ -1,0 +1,7 @@
+[
+ {
+  "file": "crates/ui-egui/src/chrome.rs",
+  "find": "if widgets::ghost_button_sized(ui, \"messages-square\", \"Discord\", tab_h)",
+  "replace": "if !cfg!(target_os = \"ios\") && widgets::ghost_button_sized(ui, \"messages-square\", \"Discord\", tab_h)"
+ }
+]

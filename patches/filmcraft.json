@@ -1,0 +1,7 @@
+[
+ {
+  "file": "crates/ui-egui/src/header.rs",
+  "find": "    // Community: a labelled Discord button, always one click away.\n    {\n",
+  "replace": "    // craft-ios: no Discord button (the original project is credited in About).\n    if !cfg!(target_os = \"ios\") {\n"
+ }
+]
