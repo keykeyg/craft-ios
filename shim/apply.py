@@ -215,17 +215,55 @@ def patch_winit(root: Path) -> None:
               r"let frame = match window_attributes\.inner_size \{.*?None => screen_bounds,\s*\};",
               "// craft-ios: an iOS window always fills the screen; desktop window sizes don't apply.\n        let frame = screen_bounds;",
               regex=True)
-    # Glasses mode moves the window to another screen: take on that screen's pixel density too,
-    # or a 1080p display would be drawn at the phone's 3x.
-    edit_once(dest / "src/platform_impl/ios/window.rs", "craft-ios: screen scale",
-              "        let bounds = uiscreen.bounds();\n        self.window.setFrame(bounds);\n",
-              "        let bounds = uiscreen.bounds();\n        self.window.setFrame(bounds);\n"
-              "        // craft-ios: screen scale follows the screen the window is on.\n"
+    # The scene life cycle (iOS 27 SDK; fills iPhone Duo's inner display): shim/ios_scene.rs.
+    ios = dest / "src/platform_impl/ios"
+    shutil.copyfile(HERE / "ios_scene.rs", ios / "scene.rs")
+    edit_once(ios / "mod.rs", "mod scene;", "mod notification_center;\n",
+              "mod notification_center;\nmod scene;\n")
+    edit_once(ios / "event_loop.rs", "scene::install",
+              "        let center = unsafe { NSNotificationCenter::defaultCenter() };\n",
+              "        let center = unsafe { NSNotificationCenter::defaultCenter() };\n"
+              "        // craft-ios: attach windows to the app's scene when UIKit connects it.\n"
+              "        super::scene::install(&center);\n")
+    edit_once(ios / "window.rs", "scene::adopt",
+              "        let window = WinitUIWindow::new(mtm, &window_attributes, frame, &view_controller);\n",
+              "        let window = WinitUIWindow::new(mtm, &window_attributes, frame, &view_controller);\n"
+              "        super::scene::adopt(&objc2::rc::Retained::into_super(window.clone()));\n")
+    # set_fullscreen moves a window by changing its scene (glasses mode), and the window takes on
+    # the new screen's pixel density, or a 1080p display would be drawn at the phone's 3x.
+    edit_once(ios / "window.rs", "craft-ios: scenes",
+              "        // this is pretty slow on iOS, so avoid doing it if we can\n"
+              "        let current = self.window.screen();\n"
+              "        if uiscreen != current {\n"
+              "            self.window.setScreen(&uiscreen);\n"
+              "        }\n\n"
+              "        let bounds = uiscreen.bounds();\n"
+              "        self.window.setFrame(bounds);\n",
+              "        // craft-ios: scenes. A window moves to another screen by joining its scene.\n"
+              "        if !super::scene::move_to(&self.window, &uiscreen) {\n"
+              "            let current = self.window.screen();\n"
+              "            if uiscreen != current {\n"
+              "                self.window.setScreen(&uiscreen);\n"
+              "            }\n"
+              "            let bounds = uiscreen.bounds();\n"
+              "            self.window.setFrame(bounds);\n"
+              "        }\n"
+              "        // Screen scale follows the screen the window is on.\n"
               "        let scale = uiscreen.nativeScale();\n"
               "        if self.view.contentScaleFactor() != scale {\n"
               "            #[allow(unused_unsafe)]\n"
               "            unsafe { self.view.setContentScaleFactor(scale) };\n"
               "        }\n")
+    edit_once(ios / "monitor.rs", "external_screens",
+              "    UIScreen::screens(mtm).into_iter().map(MonitorHandle::new).collect()\n",
+              "    let mut screens: Vec<Retained<UIScreen>> = UIScreen::screens(mtm).into_iter().collect();\n"
+              "    // craft-ios: external displays connected as scenes.\n"
+              "    for s in super::scene::external_screens() {\n"
+              "        if !screens.contains(&s) {\n"
+              "            screens.push(s);\n"
+              "        }\n"
+              "    }\n"
+              "    screens.into_iter().map(MonitorHandle::new).collect()\n")
     if m:
         cargo.write_text(text.replace(m.group(0), f'winit = {{ path = "../{dest.name}" }}'))
     print("winit -> full-screen iOS windows, external screens")

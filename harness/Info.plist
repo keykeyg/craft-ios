@@ -31,6 +31,35 @@
   </array>
   <key>UILaunchScreen</key>
   <dict/>
+  <!-- Scene life cycle: required for the iOS 27 SDK, which lets the app fill iPhone Duo's inner
+       display. winit attaches its windows to these scenes (shim/ios_scene.rs). The external
+       display role is for glasses mode. -->
+  <key>UIApplicationSceneManifest</key>
+  <dict>
+    <key>UIApplicationSupportsMultipleScenes</key>
+    <false/>
+    <key>UISceneConfigurations</key>
+    <dict>
+      <key>UIWindowSceneSessionRoleApplication</key>
+      <array>
+        <dict>
+          <key>UISceneConfigurationName</key>
+          <string>Default</string>
+          <key>UISceneClassName</key>
+          <string>UIWindowScene</string>
+        </dict>
+      </array>
+      <key>UIWindowSceneSessionRoleExternalDisplayNonInteractive</key>
+      <array>
+        <dict>
+          <key>UISceneConfigurationName</key>
+          <string>External display</string>
+          <key>UISceneClassName</key>
+          <string>UIWindowScene</string>
+        </dict>
+      </array>
+    </dict>
+  </dict>
   <key>UIStatusBarHidden</key>
   <true/>
   <key>UIFileSharingEnabled</key>

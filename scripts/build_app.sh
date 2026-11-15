@@ -35,6 +35,8 @@ export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$W/target}"
 cargo build --release --target aarch64-apple-ios -p "$UP" 2>&1 | tee "$W/cargo.log"
 BIN="$CARGO_TARGET_DIR/aarch64-apple-ios/release/$UP"
 test -f "$BIN"; file "$BIN"; ls -la "$BIN"
+# The SDK in the binary decides how iPhone Duo shows the app (27.1+: full inner display).
+xcrun --sdk iphoneos --show-sdk-version; xcrun vtool -show-build "$BIN" | grep -E "minos|sdk" || true
 VER="$(cargo metadata --no-deps --format-version 1 | python3 -c "import json,sys;print([p for p in json.load(sys.stdin)['packages'] if p['name']=='$UP'][0]['version'])")"
 end
 
