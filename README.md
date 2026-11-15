@@ -15,25 +15,32 @@ Build: edit `build.json` (`{"apps": ["all"]}` or e.g. `["pdf", "grid"]`) and pus
 `testflight` workflow by hand. Signing material is in `secrets.enc`, opened with the `CRAFT_KEY`
 repository secret.
 
+## iPhone and Duo
+
+- `shim/ios_touch.rs` is compiled into eframe: 44 pt minimum tap targets, 8 pt spacing, capsule
+  buttons and iPhone-size text, applied as floors on every app's own theme.
+- winit's iOS window always fills the screen, and egui lays out inside the safe area.
+
 ## Names and icons
 
 ArtCraft's names and logos are trademarks of the ArtCraft Team, and its brand licence asks that
-modified versions drop them. These builds are modified, so they ship as "KG PDF", "KG Photo", …
-with original icons (`scripts/make_icons.py`). The code remains the ArtCraft team's, under its
+modified versions drop them. These builds are modified, so they ship as the Loom Studio suite ("Loom PDF",
+"Loom Photo", …) with original icons (`scripts/make_icons.py`), and the in-app names and logos are
+replaced too (`shim/apply.py`, `shim/brand/`). The code remains the ArtCraft team's, under its
 Apache-2.0 / MIT licences; each app bundle carries the upstream NOTICE and licence files.
 
 | id | app | upstream |
 |---|---|---|
-| pdf | KG PDF | storytold/pdfcraft |
-| photo | KG Photo | storytold/photocraft |
-| vector | KG Vector | storytold/vectorcraft |
-| layout | KG Layout | storytold/designcraft |
-| raw | KG Raw | storytold/lightcraft |
-| film | KG Film | storytold/filmcraft |
-| motion | KG Motion | storytold/effectcraft |
-| proto | KG Proto | storytold/figcraft |
-| write | KG Write | storytold/wordcraft |
-| grid | KG Grid | storytold/gridcraft |
-| deck | KG Deck | storytold/deckcraft |
-| audio | KG Audio | storytold/soundcraft |
-| cad | KG CAD | storytold/cadcraft |
+| pdf | Loom PDF | storytold/pdfcraft |
+| photo | Loom Photo | storytold/photocraft |
+| vector | Loom Vector | storytold/vectorcraft |
+| layout | Loom Layout | storytold/designcraft |
+| raw | Loom Light | storytold/lightcraft |
+| film | Loom Film | storytold/filmcraft |
+| motion | Loom Motion | storytold/effectcraft |
+| proto | Loom Proto | storytold/figcraft |
+| write | Loom Write | storytold/wordcraft |
+| grid | Loom Grid | storytold/gridcraft |
+| deck | Loom Deck | storytold/deckcraft |
+| audio | Loom Audio | storytold/soundcraft |
+| cad | Loom CAD | storytold/cadcraft |

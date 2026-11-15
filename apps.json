@@ -1,15 +1,108 @@
 [
-  {"id": "pdf",    "upstream": "pdfcraft",    "name": "KG PDF",    "label": "PDF",  "glyph": "page"},
-  {"id": "photo",  "upstream": "photocraft",  "name": "KG Photo",  "label": "PHO",  "glyph": "brush"},
-  {"id": "vector", "upstream": "vectorcraft", "name": "KG Vector", "label": "VEC",  "glyph": "pen"},
-  {"id": "layout", "upstream": "designcraft", "name": "KG Layout", "label": "LAY",  "glyph": "columns"},
-  {"id": "raw",    "upstream": "lightcraft",  "name": "KG Raw",    "label": "RAW",  "glyph": "aperture"},
-  {"id": "film",   "upstream": "filmcraft",   "name": "KG Film",   "label": "FLM",  "glyph": "film"},
-  {"id": "motion", "upstream": "effectcraft", "name": "KG Motion", "label": "FX",   "glyph": "spark"},
-  {"id": "proto",  "upstream": "figcraft",    "name": "KG Proto",  "label": "UI",   "glyph": "frames"},
-  {"id": "write",  "upstream": "wordcraft",   "name": "KG Write",  "label": "DOC",  "glyph": "lines"},
-  {"id": "grid",   "upstream": "gridcraft",   "name": "KG Grid",   "label": "GRD",  "glyph": "grid"},
-  {"id": "deck",   "upstream": "deckcraft",   "name": "KG Deck",   "label": "DCK",  "glyph": "slides"},
-  {"id": "audio",  "upstream": "soundcraft",  "name": "KG Audio",  "label": "AUD",  "glyph": "wave"},
-  {"id": "cad",    "upstream": "cadcraft",    "name": "KG CAD",    "label": "CAD",  "glyph": "compass"}
+ {
+  "id": "pdf",
+  "upstream": "pdfcraft",
+  "name": "Loom PDF",
+  "label": "PDF",
+  "glyph": "page",
+  "brand": "PdfCraft"
+ },
+ {
+  "id": "photo",
+  "upstream": "photocraft",
+  "name": "Loom Photo",
+  "label": "PHO",
+  "glyph": "brush",
+  "brand": "PhotoCraft"
+ },
+ {
+  "id": "vector",
+  "upstream": "vectorcraft",
+  "name": "Loom Vector",
+  "label": "VEC",
+  "glyph": "pen",
+  "brand": "VectorCraft"
+ },
+ {
+  "id": "layout",
+  "upstream": "designcraft",
+  "name": "Loom Layout",
+  "label": "LAY",
+  "glyph": "columns",
+  "brand": "DesignCraft"
+ },
+ {
+  "id": "raw",
+  "upstream": "lightcraft",
+  "name": "Loom Light",
+  "label": "RAW",
+  "glyph": "aperture",
+  "brand": "LightCraft",
+  "store_name": "Loom Studio Light"
+ },
+ {
+  "id": "film",
+  "upstream": "filmcraft",
+  "name": "Loom Film",
+  "label": "FLM",
+  "glyph": "film",
+  "brand": "FilmCraft"
+ },
+ {
+  "id": "motion",
+  "upstream": "effectcraft",
+  "name": "Loom Motion",
+  "label": "FX",
+  "glyph": "spark",
+  "brand": "EffectCraft"
+ },
+ {
+  "id": "proto",
+  "upstream": "figcraft",
+  "name": "Loom Proto",
+  "label": "UI",
+  "glyph": "frames",
+  "brand": "FigCraft"
+ },
+ {
+  "id": "write",
+  "upstream": "wordcraft",
+  "name": "Loom Write",
+  "label": "DOC",
+  "glyph": "lines",
+  "brand": "WordCraft"
+ },
+ {
+  "id": "grid",
+  "upstream": "gridcraft",
+  "name": "Loom Grid",
+  "label": "GRD",
+  "glyph": "grid",
+  "brand": "GridCraft"
+ },
+ {
+  "id": "deck",
+  "upstream": "deckcraft",
+  "name": "Loom Deck",
+  "label": "DCK",
+  "glyph": "slides",
+  "brand": "DeckCraft",
+  "store_name": "Loom Studio Deck"
+ },
+ {
+  "id": "audio",
+  "upstream": "soundcraft",
+  "name": "Loom Audio",
+  "label": "AUD",
+  "glyph": "wave",
+  "brand": "SoundCraft"
+ },
+ {
+  "id": "cad",
+  "upstream": "cadcraft",
+  "name": "Loom CAD",
+  "label": "CAD",
+  "glyph": "compass",
+  "brand": "CADCraft"
+ }
 ]

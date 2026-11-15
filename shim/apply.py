@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Turn an upstream ArtCraft checkout into an iOS build tree.
 
-    apply.py <checkout> <upstream-name>
+    apply.py <checkout> <upstream-name> [<brand> <display name>]
 
 1. Vendors the stand-ins in shim/ (rfd: file dialogs, arboard: clipboard; neither
    has an iOS backend upstream) and patches crates.io to them.
@@ -16,6 +16,7 @@ The result is only meant for iOS builds: desktop dialogs in this tree no-op.
 import json
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -168,6 +169,132 @@ def drop_wayland(root: Path) -> None:
             print("arboard-linux gate off iOS:", rel)
 
 
+def clone_at(url: str, rev: str, dest: Path) -> None:
+    """Shallow checkout of one commit (reused when it's already there)."""
+    if (dest / ".git").exists():
+        head = subprocess.run(["git", "-C", str(dest), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        if head == rev:
+            return
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True)
+    for args in (["init", "-q"], ["remote", "add", "origin", url], ["fetch", "-q", "--depth", "1", "origin", rev],
+                 ["checkout", "-q", "FETCH_HEAD"]):
+        subprocess.run(["git", "-C", str(dest), *args], check=True)
+
+
+def edit_once(path: Path, marker: str, old: str, new: str, regex: bool = False) -> None:
+    text = path.read_text()
+    if marker in text:
+        return
+    out = re.sub(old, new, text, count=1, flags=re.S) if regex else text.replace(old, new, 1)
+    if out == text:
+        sys.exit(f"{path}: expected code not found (upstream changed?)")
+    path.write_text(out)
+
+
+def patch_winit(root: Path) -> None:
+    """iOS windows always fill the screen. winit's iOS backend otherwise sizes the UIWindow
+    from the app's desktop window size (1440x920 and the like), which boxes and clips the app."""
+    cargo = root / "Cargo.toml"
+    text = cargo.read_text()
+    m = re.search(r'^winit = \{ git = "(https://github\.com/storytold/winit\.git)", rev = "([0-9a-f]+)" \}', text, re.M)
+    if not m:
+        print("winit: no storytold patch line; window sizing left as is")
+        return
+    url, rev = m.groups()
+    dest = root.parent / f"ios-winit-{rev[:8]}"
+    clone_at(url, rev, dest)
+    edit_once(dest / "src/platform_impl/ios/window.rs", "craft-ios",
+              r"let frame = match window_attributes\.inner_size \{.*?None => screen_bounds,\s*\};",
+              "// craft-ios: an iOS window always fills the screen; desktop window sizes don't apply.\n        let frame = screen_bounds;",
+              regex=True)
+    cargo.write_text(text.replace(m.group(0), f'winit = {{ path = "../{dest.name}" }}'))
+    print("winit -> full-screen iOS windows")
+
+
+def patch_egui(root: Path) -> None:
+    """The touch layer (shim/ios_touch.rs) runs in eframe before each frame, and egui-winit lays
+    the UI out inside the iOS safe area (clear of the camera cutout and home indicator)."""
+    cargo = root / "Cargo.toml"
+    text = cargo.read_text()
+    revs = set(re.findall(r'git = "https://github\.com/storytold/egui\.git", rev = "([0-9a-f]+)"', text))
+    if len(revs) != 1:
+        sys.exit(f"egui: expected one storytold/egui revision, found {sorted(revs)}")
+    rev = revs.pop()
+    dest = root.parent / f"ios-egui-{rev[:8]}"
+    clone_at("https://github.com/storytold/egui.git", rev, dest)
+    eframe = dest / "crates/eframe/src"
+    shutil.copyfile(HERE / "ios_touch.rs", eframe / "ios_touch.rs")
+    edit_once(eframe / "lib.rs", "mod ios_touch;", "\nmod epi;\n",
+              "\nmod epi;\n\n#[cfg(target_os = \"ios\")]\nmod ios_touch;\n")
+    edit_once(eframe / "native/epi_integration.rs", "ios_touch::apply",
+              "        let raw_input = self.prepare_raw_input(app, raw_input);\n\n        let close_requested",
+              "        let raw_input = self.prepare_raw_input(app, raw_input);\n\n"
+              "        #[cfg(target_os = \"ios\")]\n        crate::ios_touch::apply(&self.egui_ctx);\n\n"
+              "        let close_requested")
+    edit_once(dest / "crates/egui-winit/src/lib.rs", "craft-ios",
+              "            .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));\n",
+              "            .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));\n"
+              "        // craft-ios: on iOS the window's inner size is its safe area; start the layout\n"
+              "        // there too, so nothing sits under the camera cutout or the home indicator.\n"
+              "        #[cfg(target_os = \"ios\")]\n"
+              "        if let (Ok(inner), Ok(outer), Some(rect)) =\n"
+              "            (window.inner_position(), window.outer_position(), self.egui_input.screen_rect.as_mut())\n"
+              "        {\n"
+              "            let ppp = pixels_per_point(&self.egui_ctx, window);\n"
+              "            let origin = Pos2::new((inner.x - outer.x) as f32 / ppp, (inner.y - outer.y) as f32 / ppp);\n"
+              "            *rect = Rect::from_min_size(origin, rect.size());\n"
+              "        }\n")
+    text = re.sub(r'^([A-Za-z0-9_-]+) = \{ git = "https://github\.com/storytold/egui\.git", rev = "[0-9a-f]+" \}',
+                  lambda m: f'{m.group(1)} = {{ path = "../{dest.name}/crates/{m.group(1)}" }}', text, flags=re.M)
+    cargo.write_text(text)
+    print("egui -> touch layer + safe area")
+
+
+# Names and logos: ArtCraft's brand licence asks modified versions to drop them.
+LITERAL = re.compile(r'(?<![A-Za-z0-9_#\'])"((?:[^"\\\n]|\\.)*)"')
+
+
+def rebrand(root: Path, brand: str, display: str) -> None:
+    tokens = [(re.compile(re.escape(brand) + r"(?![A-Za-z0-9_])"), display),
+              (re.compile(r"ArtCraft(?![A-Za-z0-9_])"), "Loom Studio")]
+
+    def fix(m):
+        body = m.group(1)
+        if not any(rx.search(body) for rx, _ in tokens):
+            return m.group(0)
+        # Only human-readable text (or the bare product name); keys like "PdfCraft-1.7" stay.
+        # The rule depends only on the literal, so a translation key and the UI string that
+        # looks it up always change the same way.
+        if " " not in body and "\\n" not in body and body not in (brand, "ArtCraft"):
+            return m.group(0)
+        # The Discord link still goes to the original project's server: say so.
+        art = "upstream" if "discord" in body.lower() else "Loom Studio"
+        body = tokens[0][0].sub(display, body)
+        body = tokens[1][0].sub(art, body)
+        return '"' + body + '"'
+
+    changed = 0
+    for p in list(root.glob("apps/*/src/**/*.rs")) + list(root.glob("crates/*/src/**/*.rs")):
+        if "-web/" in p.as_posix():
+            continue
+        text = p.read_text(errors="ignore")
+        if brand not in text and "ArtCraft" not in text:
+            continue
+        new = LITERAL.sub(fix, text)
+        if new != text:
+            p.write_text(new)
+            changed += 1
+    brand_dir = root / "docs" / "brand"
+    swapped = 0
+    if brand_dir.is_dir():
+        for f in (HERE / "brand").iterdir():
+            if (brand_dir / f.name).exists():
+                shutil.copyfile(f, brand_dir / f.name)
+                swapped += 1
+    print(f"rebrand: {brand} -> {display} in {changed} files, {swapped} logo files replaced")
+
+
 def app_patches(root: Path, name: str) -> None:
     f = REPO / "patches" / f"{name}.json"
     if not f.exists():
@@ -183,7 +310,12 @@ def app_patches(root: Path, name: str) -> None:
 
 def main() -> None:
     root, name = Path(sys.argv[1]).resolve(), sys.argv[2]
+    brand, display = (sys.argv[3], sys.argv[4]) if len(sys.argv) > 4 else (None, None)
     patch_stubs(root)
+    patch_winit(root)
+    patch_egui(root)
+    if brand:
+        rebrand(root, brand, display)
     drop_glow(root)
     drop_linux_winit(root)
     drop_wayland(root)

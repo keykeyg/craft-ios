@@ -127,3 +127,32 @@ if __name__ == "__main__" and sys.argv[1] == "testers":
     ensure_internal_testing(sys.argv[2])
 if __name__ == "__main__" and sys.argv[1] == "status":
     builds_status()
+
+def rename_apps():
+    """Set each App Store Connect record's name (and the bundle ID's label) from apps.json."""
+    apps = {a["attributes"]["bundleId"]: a for a in get_all("/v1/apps", {"fields[apps]": "name,bundleId"})}
+    bids = {b["attributes"]["identifier"]: b for b in get_all("/v1/bundleIds", {"fields[bundleIds]": "identifier,name"})}
+    for a in apps_cfg():
+        ident = BUNDLE_PREFIX + a["id"]
+        b = bids.get(ident)
+        if b and b["attributes"]["name"] != a["name"]:
+            call("PATCH", f"/v1/bundleIds/{b['id']}", {"data": {"type": "bundleIds", "id": b["id"], "attributes": {"name": a["name"]}}})
+        app = apps.get(ident)
+        if app is None:
+            print(f"{a['id']}: no app record"); continue
+        want = a.get("store_name", a["name"])  # App Store names are global; a few needed a longer one
+        if app["attributes"]["name"] == want:
+            print(f"{a['id']}: already {want}"); continue
+        infos = get_all(f"/v1/apps/{app['id']}/appInfos")
+        info = next((i for i in infos if i["attributes"].get("appStoreState") in (None, "PREPARE_FOR_SUBMISSION")
+                     or i["attributes"].get("state") in ("PREPARE_FOR_SUBMISSION",)), infos[0])
+        locs = get_all(f"/v1/appInfos/{info['id']}/appInfoLocalizations")
+        for loc in locs:
+            r = requests.patch(API + f"/v1/appInfoLocalizations/{loc['id']}", timeout=60,
+                               headers={"Authorization": "Bearer " + token(), "Content-Type": "application/json"},
+                               json={"data": {"type": "appInfoLocalizations", "id": loc["id"], "attributes": {"name": want}}})
+            msg = "ok" if r.status_code < 300 else f"{r.status_code} {r.text[:200]}"
+            print(f"{a['id']}: {app['attributes']['name']} -> {want} [{loc['attributes'].get('locale')}] {msg}")
+
+if __name__ == "__main__" and sys.argv[1] == "rename":
+    rename_apps()

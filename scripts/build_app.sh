@@ -22,7 +22,7 @@ if [ -z "$REF" ]; then
 fi
 git clone --quiet --depth 1 ${REF:+--branch "$REF"} "https://github.com/storytold/$UP" "$W/src"
 echo "ref=${REF:-main} commit=$(git -C "$W/src" rev-parse --short HEAD)" | tee "$W/upstream.txt"
-python3 "$REPO/shim/apply.py" "$W/src" "$UP"
+python3 "$REPO/shim/apply.py" "$W/src" "$UP" "$(cfg brand)" "$NAME"
 end
 
 # --- Rust build ------------------------------------------------------------------------------------
