@@ -74,6 +74,14 @@ fn state() -> std::sync::MutexGuard<'static, State> {
     STATE.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// Once, before the app starts. craft-update (the apps' updater) counts this copy as the newest
+/// version, so it never offers the original project's releases: updates come from TestFlight.
+#[allow(unsafe_code)]
+pub(crate) fn startup() {
+    // SAFETY: called at the top of run_native, before the app starts any threads.
+    unsafe { std::env::set_var("ARTCRAFT_LAUNCHER_PRETEND_VERSION", "9999.0.0") };
+}
+
 // ------------------------------------------------------------------- window placement (root)
 
 /// Put the app's window on the external display while one is connected, back on the phone

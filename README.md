@@ -23,7 +23,7 @@ repository secret.
 - Copy and paste go through the iOS pasteboard, so they work between apps.
 - No links out to the original project from inside the apps: Discord, website and GitHub
   buttons are hidden (`patches/`, and the Help-menu pass in `shim/apply.py`), such links don't
-  open, and there are no update checks against its releases (updates come from TestFlight).
+  open, and its releases are never offered as updates (updates come from TestFlight).
 
 ## Glasses mode
 

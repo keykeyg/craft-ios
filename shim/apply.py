@@ -231,37 +231,6 @@ def patch_winit(root: Path) -> None:
     print("winit -> full-screen iOS windows, external screens")
 
 
-def patch_craft_libs(root: Path) -> None:
-    """No update checks against the original project's GitHub releases: on iOS, updates come
-    through TestFlight and the App Store."""
-    cargo = root / "Cargo.toml"
-    text = cargo.read_text()
-    revs = set(re.findall(r'git = "https://github\.com/storytold/craft-libs", rev = "([0-9a-f]+)"', text))
-    if not revs:
-        print("craft-libs: not used")
-        return
-    if len(revs) != 1:
-        sys.exit(f"craft-libs: expected one revision, found {sorted(revs)}")
-    rev = revs.pop()
-    dest = root.parent / f"ios-craft-libs-{rev[:8]}"
-    clone_at("https://github.com/storytold/craft-libs", rev, dest)
-    edit_once(dest / "crates/update/src/lib.rs", "craft-ios",
-              "pub fn check_for_update(app: &App, http: &Http, current_version: &str) -> Result<Option<Release>, String> {\n",
-              "pub fn check_for_update(app: &App, http: &Http, current_version: &str) -> Result<Option<Release>, String> {\n"
-              "    // craft-ios: updates come from TestFlight / the App Store, not the original project.\n"
-              "    if cfg!(target_os = \"ios\") {\n"
-              "        let _ = (app, http, current_version);\n"
-              "        return Ok(None);\n"
-              "    }\n")
-    section = '[patch."https://github.com/storytold/craft-libs"]'
-    line = f'craft-update = {{ path = "../{dest.name}/crates/update" }}'
-    if section in text and line not in text:
-        sys.exit(f"craft-libs: {cargo} already has a {section} section")
-    if line not in text:
-        cargo.write_text(text.rstrip("\n") + f"\n\n{section}\n{line}\n")
-    print("craft-libs -> no upstream update checks")
-
-
 def bar_module(upstream: str) -> str:
     """The app's own Touch Bar row for glasses mode, from shim/bars.json."""
     bars = json.loads((HERE / "bars.json").read_text())
@@ -293,6 +262,11 @@ def patch_egui(root: Path, upstream: str = "") -> None:
     edit_once(eframe / "lib.rs", "mod ios_touch;", "\nmod epi;\n",
               "\nmod epi;\n\n#[cfg(target_os = \"ios\")]\nmod ios_touch;\n"
               "#[cfg(target_os = \"ios\")]\nmod ios_glasses;\n#[cfg(target_os = \"ios\")]\nmod ios_bar;\n")
+    # At startup: never offer updates from the original project (updates come from TestFlight).
+    edit_once(eframe / "lib.rs", "ios_glasses::startup",
+              ") -> Result {\n    let renderer = init_native(app_name, &mut native_options);\n",
+              ") -> Result {\n    #[cfg(target_os = \"ios\")]\n    crate::ios_glasses::startup();\n"
+              "    let renderer = init_native(app_name, &mut native_options);\n")
     # Before each frame: phone or desktop sizes, and input from the phone controller.
     edit_once(eframe / "native/epi_integration.rs", "ios_glasses::before_frame",
               "        let raw_input = self.prepare_raw_input(app, raw_input);\n\n        let close_requested",
@@ -439,7 +413,6 @@ def main() -> None:
     patch_stubs(root)
     patch_winit(root)
     patch_egui(root, name)
-    patch_craft_libs(root)
     hide_link_menus(root)
     if brand:
         rebrand(root, brand, display)
